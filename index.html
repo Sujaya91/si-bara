@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Si-BARA (Sistem Berita Acara Rapat)</title>
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Signature Pad -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- html2canvas and jsPDF for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .doc-preview {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            min-height: 842px; /* A4 Ratio */
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            color: black;
+            padding: 3rem;
+        }
+
+        .sidebar-gradient {
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        canvas { touch-action: none; border: 2px dashed #e2e8f0; border-radius: 1rem; }
+        
+        .dark-mode { background-color: #030712; color: white; }
+        .dark-mode .bg-white { background-color: #111827; color: white; border-color: #1f2937; }
+        .dark-mode .text-gray-900 { color: #f3f4f6; }
+        .dark-mode .bg-gray-50 { background-color: #1f2937; }
+    </style>
+</head>
+<body class="bg-gray-50 transition-colors duration-300" id="bodyApp">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar-gradient w-full md:w-72 p-6 flex flex-col text-white">
+            <div class="flex items-center space-x-3 mb-10">
+                <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">B</div>
+                <h1 class="font-bold text-2xl tracking-tighter">Si-BARA</h1>
+            </div>
+
+            <nav class="space-y-2 flex-1">
+                <button onclick="switchTab('dashboard')" class="nav-link w-full flex items-center space-x-3 p-3 rounded-xl bg-white/10" id="btn-dashboard">
+                    <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('input')" class="nav-link w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-white/5" id="btn-input">
+                    <i data-lucide="plus"></i> <span>Generate Baru</span>
+                </button>
+                <button onclick="switchTab('history')" class="nav-link w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-white/5" id="btn-history">
+                    <i data-lucide="history"></i> <span>Riwayat</span>
+                </button>
+                <button onclick="switchTab('settings')" class="nav-link w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/5" id="btn-settings">
+                    <div class="flex items-center space-x-3">
+                        <i data-lucide="settings"></i> <span>Pengaturan</span>
+                    </div>
+                    <i data-lucide="lock" class="w-4 h-4 opacity-50"></i>
+                </button>
+            </nav>
+
+            <div class="mt-8 border-t border-white/10 pt-6">
+                <button onclick="toggleDarkMode()" class="w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-white/5 text-blue-100/70">
+                    <i data-lucide="moon" id="theme-icon"></i> <span id="theme-text">Mode Gelap</span>
+                </button>
+                <div class="mt-4 px-3 opacity-40">
+                    <p class="text-[10px] uppercase font-bold text-blue-200">Kreator</p>
+                    <p class="text-xs font-bold text-white">I Putu Sujaya</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 md:p-10 overflow-y-auto">
+            
+            <!-- Tab: Dashboard -->
+            <div id="dashboard" class="tab-content active animate-fade-in">
+                <header class="mb-10">
+                    <h2 class="text-3xl font-extrabold tracking-tight text-gray-900">Dashboard Utama</h2>
+                    <p class="text-gray-500 mt-2">Sistem Administrasi Berita Acara Rapat Digital.</p>
+                </header>
+
+                <!-- Quick Access -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    <button onclick="switchTab('input')" class="bg-white p-6 rounded-[32px] shadow-sm border text-left group hover:shadow-xl transition-all">
+                        <div class="bg-blue-500 w-12 h-12 rounded-2xl text-white flex items-center justify-center mb-4"><i data-lucide="plus"></i></div>
+                        <h3 class="font-bold text-xl mb-1">Buat Baru</h3>
+                        <p class="text-xs text-gray-400">Buat dokumen rapat hari ini</p>
+                    </button>
+                    <button onclick="switchTab('history')" class="bg-white p-6 rounded-[32px] shadow-sm border text-left group hover:shadow-xl transition-all">
+                        <div class="bg-emerald-500 w-12 h-12 rounded-2xl text-white flex items-center justify-center mb-4"><i data-lucide="file-text"></i></div>
+                        <h3 class="font-bold text-xl mb-1">Arsip</h3>
+                        <p class="text-xs text-gray-400">Lihat data yang tersimpan</p>
+                    </button>
+                    <button onclick="switchTab('settings')" class="bg-white p-6 rounded-[32px] shadow-sm border text-left group hover:shadow-xl transition-all">
+                        <div class="bg-indigo-500 w-12 h-12 rounded-2xl text-white flex items-center justify-center mb-4"><i data-lucide="settings"></i></div>
+                        <h3 class="font-bold text-xl mb-1">Konfigurasi</h3>
+                        <p class="text-xs text-gray-400">Ubah format template</p>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-[32px] border">
+                        <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-amber-600"><i data-lucide="info"></i> Panduan Cepat</h3>
+                        <ul class="space-y-4">
+                            <li class="flex gap-4">
+                                <span class="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                                <p class="text-sm text-gray-600">Klik "Generate Baru" dan isi data rapat.</p>
+                            </li>
+                            <li class="flex gap-4">
+                                <span class="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                                <p class="text-sm text-gray-600">Lakukan tanda tangan digital pada kolom tersedia.</p>
+                            </li>
+                            <li class="flex gap-4">
+                                <span class="bg-gray-100 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                                <p class="text-sm text-gray-600">Ekspor ke PDF untuk dokumen fisik.</p>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[32px] text-white">
+                        <h3 class="text-lg font-bold mb-4 opacity-80">Informasi Sistem</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-[10px] uppercase font-bold text-blue-200">Penyimpanan</p>
+                                <p class="text-2xl font-black" id="stat-count">0 Berkas</p>
+                            </div>
+                            <div class="p-4 bg-white/10 rounded-2xl">
+                                <p class="text-xs italic">"Teknologi membantu administrasi menjadi lebih akurat."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Input -->
+            <div id="input" class="tab-content animate-fade-in">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <!-- Form Side -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-8 rounded-[32px] border">
+                            <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><i data-lucide="edit-3" class="text-blue-500"></i> Data Rapat</h3>
+                            <div id="dynamic-fields" class="space-y-4">
+                                <!-- JavaScript will inject fields here -->
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-8 rounded-[32px] border">
+                            <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><i data-lucide="check-circle" class="text-emerald-500"></i> Otorisasi</h3>
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-xs font-bold mb-2">Nama Sekretaris</label>
+                                    <input type="text" id="input_nama_sekretaris" oninput="updatePreview()" class="w-full bg-gray-50 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500">
+                                    <div class="mt-2 bg-white">
+                                        <canvas id="pad-sekretaris" class="w-full h-32"></canvas>
+                                        <button onclick="clearPad('sekretaris')" class="text-[10px] text-red-500 font-bold mt-1">HAPUS TTD</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold mb-2">Nama Ketua Rapat</label>
+                                    <input type="text" id="input_nama_ketua" oninput="updatePreview()" class="w-full bg-gray-50 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500">
+                                    <div class="mt-2 bg-white">
+                                        <canvas id="pad-ketua" class="w-full h-32"></canvas>
+                                        <button onclick="clearPad('ketua')" class="text-[10px] text-red-500 font-bold mt-1">HAPUS TTD</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Side -->
+                    <div class="relative">
+                        <div class="sticky top-4 space-y-4">
+                            <div id="capture-area" class="doc-preview">
+                                <div id="template-render" class="whitespace-pre-wrap leading-relaxed text-justify mb-20"></div>
+                                <div class="grid grid-cols-2 gap-8 text-center pt-10 border-t">
+                                    <div class="flex flex-col items-center">
+                                        <p class="text-sm font-bold mb-4">Sekretaris,</p>
+                                        <img id="img-ttd-sekretaris" class="h-16 mb-2 hidden">
+                                        <p class="border-b border-black font-bold uppercase text-xs px-2" id="preview-sekretaris">........</p>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <p class="text-sm font-bold mb-4">Ketua Rapat,</p>
+                                        <img id="img-ttd-ketua" class="h-16 mb-2 hidden">
+                                        <p class="border-b border-black font-bold uppercase text-xs px-2" id="preview-ketua">........</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="exportDoc('pdf')" class="flex-1 bg-blue-600 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2"><i data-lucide="download"></i> Simpan PDF</button>
+                                <button onclick="exportDoc('png')" class="bg-gray-200 p-4 rounded-2xl font-bold">PNG</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: History -->
+            <div id="history" class="tab-content animate-fade-in">
+                <h2 class="text-2xl font-bold mb-6">Arsip Tersimpan</h2>
+                <div id="history-list" class="space-y-3">
+                    <!-- JS injected list -->
+                </div>
+            </div>
+
+            <!-- Tab: Settings -->
+            <div id="settings" class="tab-content animate-fade-in">
+                <div id="lock-screen" class="max-w-md mx-auto py-20 text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center text-blue-600 mx-auto mb-6"><i data-lucide="shield-check"></i></div>
+                    <h3 class="text-xl font-bold mb-6">Akses Terbatas</h3>
+                    <input type="password" id="access-code" placeholder="Kode Akses (BARA)" class="w-full p-4 rounded-2xl border mb-4 text-center">
+                    <button onclick="unlockSettings()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold">Buka Pengaturan</button>
+                </div>
+                <div id="settings-area" class="hidden max-w-2xl mx-auto space-y-6">
+                    <div class="bg-white p-8 rounded-[32px] border">
+                        <h3 class="font-bold mb-4">Editor Template</h3>
+                        <textarea id="template-editor" rows="10" class="w-full bg-gray-50 p-4 font-mono text-sm rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        <button onclick="saveTemplate()" class="mt-4 bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold">Simpan Perubahan</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // Initialization
+        let template = `BERITA ACARA RAPAT\nNomor: {{nomor_surat}}\n\nPada hari ini, {{hari}}, tanggal {{tanggal}}, telah dilaksanakan rapat mengenai:\n{{topik_rapat}}\n\nRapat dipimpin oleh: {{pimpinan_rapat}}\nNotulis: {{notulis}}\n\nHasil Keputusan:\n{{hasil_rapat}}\n\nDemikian berita acara ini dibuat untuk dipergunakan sebagaimana mestinya.`;
+        let history = JSON.parse(localStorage.getItem('sibara_history') || '[]');
+        let signatures = { sekretaris: null, ketua: null };
+        let dynamicData = {};
+
+        // Pads
+        let padSek, padKet;
+
+        window.onload = () => {
+            lucide.createIcons();
+            initPads();
+            extractFields();
+            renderHistory();
+            document.getElementById('template-editor').value = template;
+            updatePreview();
+        };
+
+        function initPads() {
+            const canvasSek = document.getElementById('pad-sekretaris');
+            const canvasKet = document.getElementById('pad-ketua');
+            padSek = new SignaturePad(canvasSek);
+            padKet = new SignaturePad(canvasKet);
+
+            padSek.onEnd = () => {
+                const data = padSek.toDataURL();
+                document.getElementById('img-ttd-sekretaris').src = data;
+                document.getElementById('img-ttd-sekretaris').classList.remove('hidden');
+            };
+            padKet.onEnd = () => {
+                const data = padKet.toDataURL();
+                document.getElementById('img-ttd-ketua').src = data;
+                document.getElementById('img-ttd-ketua').classList.remove('hidden');
+            };
+        }
+
+        function clearPad(type) {
+            if(type === 'sekretaris') {
+                padSek.clear();
+                document.getElementById('img-ttd-sekretaris').classList.add('hidden');
+            } else {
+                padKet.clear();
+                document.getElementById('img-ttd-ketua').classList.add('hidden');
+            }
+        }
+
+        function extractFields() {
+            const regex = /{{(.*?)}}/g;
+            const matches = [...template.matchAll(regex)];
+            const fields = [...new Set(matches.map(m => m[1].trim()))].filter(f => !['hari', 'tanggal'].includes(f));
+            
+            const container = document.getElementById('dynamic-fields');
+            container.innerHTML = '';
+            
+            fields.forEach(f => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">${f.replace(/_/g, ' ')}</label>
+                    <input type="text" oninput="handleInput('${f}', this.value)" class="w-full bg-gray-50 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function handleInput(field, val) {
+            dynamicData[field] = val;
+            updatePreview();
+        }
+
+        function updatePreview() {
+            let rendered = template;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const dayStr = now.toLocaleDateString('id-ID', { weekday: 'long' });
+
+            rendered = rendered.replace(/{{tanggal}}/g, dateStr).replace(/{{hari}}/g, dayStr);
+            
+            Object.keys(dynamicData).forEach(key => {
+                rendered = rendered.replace(new RegExp(`{{${key}}}`, 'g'), dynamicData[key]);
+            });
+
+            // Clean leftovers
+            rendered = rendered.replace(/{{.*?}}/g, '...');
+            
+            document.getElementById('template-render').innerText = rendered;
+            document.getElementById('preview-sekretaris').innerText = document.getElementById('input_nama_sekretaris').value || '........';
+            document.getElementById('preview-ketua').innerText = document.getElementById('input_nama_ketua').value || '........';
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('bg-white/10'));
+            
+            document.getElementById(id).classList.add('active');
+            document.getElementById('btn-' + id).classList.add('bg-white/10');
+        }
+
+        function toggleDarkMode() {
+            const body = document.getElementById('bodyApp');
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+            document.getElementById('theme-text').innerText = isDark ? 'Mode Terang' : 'Mode Gelap';
+            document.getElementById('theme-icon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        function unlockSettings() {
+            const code = document.getElementById('access-code').value;
+            if(code.toUpperCase() === 'BARA') {
+                document.getElementById('lock-screen').classList.add('hidden');
+                document.getElementById('settings-area').classList.remove('hidden');
+            } else {
+                alert('Kode Akses Salah!');
+            }
+        }
+
+        function saveTemplate() {
+            template = document.getElementById('template-editor').value;
+            extractFields();
+            updatePreview();
+            alert('Template Diperbarui!');
+        }
+
+        async function exportDoc(format) {
+            const element = document.getElementById('capture-area');
+            const canvas = await html2canvas(element, { scale: 2 });
+            
+            // Save to history
+            const entry = {
+                id: Date.now(),
+                title: dynamicData.nomor_surat || "Rapat",
+                date: new Date().toLocaleDateString()
+            };
+            history.unshift(entry);
+            localStorage.setItem('sibara_history', JSON.stringify(history));
+            renderHistory();
+
+            if(format === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/png');
+                const width = pdf.internal.pageSize.getWidth();
+                const height = (canvas.height * width) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                pdf.save('Berita-Acara.pdf');
+            } else {
+                const link = document.createElement('a');
+                link.download = 'Berita-Acara.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            }
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            document.getElementById('stat-count').innerText = `${history.length} Berkas`;
+            list.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-4 rounded-2xl border flex justify-between items-center';
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center"><i data-lucide="file-text"></i></div>
+                        <div>
+                            <p class="font-bold text-sm">${item.title}</p>
+                            <p class="text-[10px] text-gray-400">${item.date}</p>
+                        </div>
+                    </div>
+                    <button onclick="deleteHistory(${item.id})" class="text-red-400 p-2"><i data-lucide="trash-2"></i></button>
+                `;
+                list.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function deleteHistory(id) {
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem('sibara_history', JSON.stringify(history));
+            renderHistory();
+        }
+    </script>
+</body>
+</html>
