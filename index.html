@@ -200,7 +200,12 @@
                     <!-- Form Side -->
                     <div class="space-y-6">
                         <div class="bg-white p-8 rounded-[32px] border">
-                            <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><i data-lucide="edit-3" class="text-blue-500"></i> Data Rapat</h3>
+                            <h3 class="text-xl font-bold mb-6 flex items-center justify-between">
+                                <div class="flex items-center gap-2"><i data-lucide="edit-3" class="text-blue-500"></i> Data Rapat</div>
+                                <select id="template-selector" onchange="selectTemplate(this.value)" class="text-xs bg-gray-50 border rounded-lg px-2 py-1 outline-none">
+                                    <!-- Options injected via JS -->
+                                </select>
+                            </h3>
                             <div id="dynamic-fields" class="space-y-4 text-gray-900">
                                 <!-- JavaScript will inject fields here -->
                             </div>
@@ -275,14 +280,35 @@
                 <div id="lock-screen" class="max-w-md mx-auto py-20 text-center">
                     <div class="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center text-blue-600 mx-auto mb-6"><i data-lucide="shield-check"></i></div>
                     <h3 class="text-xl font-bold mb-6">Akses Terbatas</h3>
-                    <input type="password" id="access-code" placeholder="Kode Akses (BARA)" class="w-full p-4 rounded-2xl border mb-4 text-center focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="password" id="access-code" placeholder="Masukkan Kode Akses" class="w-full p-4 rounded-2xl border mb-4 text-center focus:ring-2 focus:ring-blue-500 outline-none">
                     <button onclick="unlockSettings()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold hover:bg-blue-700">Buka Pengaturan</button>
                 </div>
-                <div id="settings-area" class="hidden max-w-2xl mx-auto space-y-6">
+                <div id="settings-area" class="hidden max-w-4xl mx-auto space-y-6 pb-20">
                     <div class="bg-white p-8 rounded-[32px] border">
-                        <h3 class="font-bold mb-4">Editor Template</h3>
-                        <textarea id="template-editor" rows="10" class="w-full bg-gray-50 p-4 font-mono text-sm rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        <button onclick="saveTemplate()" class="mt-4 bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-emerald-700">Simpan Perubahan</button>
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="font-bold text-xl">Kelola Template Berita Acara</h3>
+                            <button onclick="createNewTemplate()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-blue-100"><i data-lucide="plus" class="w-4 h-4"></i> Tambah Template</button>
+                        </div>
+                        
+                        <!-- List of existing templates -->
+                        <div id="template-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                            <!-- JS injected list -->
+                        </div>
+
+                        <div id="active-template-editor" class="hidden border-t pt-8">
+                            <div class="flex flex-col gap-4">
+                                <input type="text" id="edit-template-name" placeholder="Nama Template (misal: Rapat Internal)" class="w-full bg-gray-50 p-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500">
+                                <textarea id="template-editor" rows="10" class="w-full bg-gray-50 p-4 font-mono text-sm rounded-xl border outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tulis template menggunakan {{placeholder}}..."></textarea>
+                                <div class="flex gap-2">
+                                    <button onclick="saveActiveTemplate()" class="flex-1 bg-emerald-600 text-white p-3 rounded-xl font-bold hover:bg-emerald-700">Simpan Perubahan</button>
+                                    <button onclick="hideTemplateEditor()" class="px-6 py-3 bg-gray-100 text-gray-500 rounded-xl font-bold hover:bg-gray-200">Batal</button>
+                                </div>
+                                <div class="p-4 bg-amber-50 rounded-xl">
+                                    <p class="text-[10px] text-amber-700 font-bold uppercase mb-1">Tips Placeholder</p>
+                                    <p class="text-[11px] text-amber-600">Gunakan {{nama_bidang}} untuk membuat input otomatis. Khusus {{hari}} dan {{tanggal}} akan terisi otomatis.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,31 +317,37 @@
     </div>
 
     <script>
+        // Default Template
+        const defaultTemplate = {
+            id: 'default',
+            name: 'Template Standar',
+            content: `BERITA ACARA RAPAT\nNomor: {{nomor_surat}}\n\nPada hari ini, {{hari}}, tanggal {{tanggal}}, telah dilaksanakan rapat mengenai:\n{{topik_rapat}}\n\nRapat dipimpin oleh: {{pimpinan_rapat}}\nNotulis: {{notulis}}\n\nHasil Keputusan:\n{{hasil_rapat}}\n\nDemikian berita acara ini dibuat untuk dipergunakan sebagaimana mestinya.`
+        };
+
         // Initialization
-        let template = `BERITA ACARA RAPAT\nNomor: {{nomor_surat}}\n\nPada hari ini, {{hari}}, tanggal {{tanggal}}, telah dilaksanakan rapat mengenai:\n{{topik_rapat}}\n\nRapat dipimpin oleh: {{pimpinan_rapat}}\nNotulis: {{notulis}}\n\nHasil Keputusan:\n{{hasil_rapat}}\n\nDemikian berita acara ini dibuat untuk dipergunakan sebagaimana mestinya.`;
+        let templates = JSON.parse(localStorage.getItem('sibara_templates') || JSON.stringify([defaultTemplate]));
+        let activeTemplateId = localStorage.getItem('sibara_active_template_id') || 'default';
+        let currentTemplate = templates.find(t => t.id === activeTemplateId) || templates[0];
+        
         let history = JSON.parse(localStorage.getItem('sibara_history') || '[]');
         let dynamicData = {};
-
-        // Pads
         let padSek, padKet;
         let isSidebarOpen = false;
+        let editingTemplateId = null;
 
         window.onload = () => {
             lucide.createIcons();
             initPads();
-            extractFields();
+            updateTemplateSelector();
+            applyCurrentTemplate();
             renderHistory();
-            document.getElementById('template-editor').value = template;
-            updatePreview();
+            renderTemplateSettings();
         };
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
-            const menuIcon = document.getElementById('menu-icon');
-            
             isSidebarOpen = !isSidebarOpen;
-            
             if (isSidebarOpen) {
                 sidebar.classList.remove('hidden-mobile');
                 sidebar.classList.add('visible-mobile');
@@ -330,7 +362,8 @@
         function initPads() {
             const canvasSek = document.getElementById('pad-sekretaris');
             const canvasKet = document.getElementById('pad-ketua');
-            
+            if(!canvasSek || !canvasKet) return;
+
             const resize = (canvas) => {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
@@ -340,21 +373,18 @@
 
             resize(canvasSek);
             resize(canvasKet);
-
             padSek = new SignaturePad(canvasSek);
             padKet = new SignaturePad(canvasKet);
 
             padSek.addEventListener("endStroke", () => {
-                const data = padSek.toDataURL('image/png');
                 const img = document.getElementById('img-ttd-sekretaris');
-                img.src = data;
+                img.src = padSek.toDataURL();
                 img.classList.remove('hidden');
             });
 
             padKet.addEventListener("endStroke", () => {
-                const data = padKet.toDataURL('image/png');
                 const img = document.getElementById('img-ttd-ketua');
-                img.src = data;
+                img.src = padKet.toDataURL();
                 img.classList.remove('hidden');
             });
         }
@@ -362,18 +392,35 @@
         function clearPad(type) {
             if(type === 'sekretaris') {
                 padSek.clear();
-                document.getElementById('img-ttd-sekretaris').src = "";
                 document.getElementById('img-ttd-sekretaris').classList.add('hidden');
             } else {
                 padKet.clear();
-                document.getElementById('img-ttd-ketua').src = "";
                 document.getElementById('img-ttd-ketua').classList.add('hidden');
             }
         }
 
+        // --- Template Management ---
+        function updateTemplateSelector() {
+            const selector = document.getElementById('template-selector');
+            selector.innerHTML = templates.map(t => `<option value="${t.id}" ${t.id === activeTemplateId ? 'selected' : ''}>${t.name}</option>`).join('');
+        }
+
+        function selectTemplate(id) {
+            activeTemplateId = id;
+            localStorage.setItem('sibara_active_template_id', id);
+            currentTemplate = templates.find(t => t.id === id);
+            applyCurrentTemplate();
+        }
+
+        function applyCurrentTemplate() {
+            dynamicData = {};
+            extractFields();
+            updatePreview();
+        }
+
         function extractFields() {
             const regex = /{{(.*?)}}/g;
-            const matches = [...template.matchAll(regex)];
+            const matches = [...currentTemplate.content.matchAll(regex)];
             const fields = [...new Set(matches.map(m => m[1].trim()))].filter(f => !['hari', 'tanggal'].includes(f));
             
             const container = document.getElementById('dynamic-fields');
@@ -389,13 +436,102 @@
             });
         }
 
+        function renderTemplateSettings() {
+            const list = document.getElementById('template-list');
+            list.innerHTML = templates.map(t => `
+                <div class="p-4 rounded-2xl border flex items-center justify-between ${t.id === activeTemplateId ? 'border-blue-500 bg-blue-50' : 'bg-white'}">
+                    <div>
+                        <p class="font-bold text-sm text-gray-900">${t.name}</p>
+                        <p class="text-[10px] text-gray-400">ID: ${t.id}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editTemplate('${t.id}')" class="p-2 text-blue-500 hover:bg-blue-100 rounded-lg"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        ${t.id !== 'default' ? `<button onclick="deleteTemplate('${t.id}')" class="p-2 text-red-400 hover:bg-red-50 rounded-lg"><i data-lucide="trash" class="w-4 h-4"></i></button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function createNewTemplate() {
+            editingTemplateId = 'new';
+            document.getElementById('edit-template-name').value = '';
+            document.getElementById('template-editor').value = '';
+            document.getElementById('active-template-editor').classList.remove('hidden');
+        }
+
+        function editTemplate(id) {
+            const t = templates.find(t => t.id === id);
+            editingTemplateId = id;
+            document.getElementById('edit-template-name').value = t.name;
+            document.getElementById('template-editor').value = t.content;
+            document.getElementById('active-template-editor').classList.remove('hidden');
+            document.getElementById('active-template-editor').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideTemplateEditor() {
+            document.getElementById('active-template-editor').classList.add('hidden');
+            editingTemplateId = null;
+        }
+
+        function saveActiveTemplate() {
+            const name = document.getElementById('edit-template-name').value.trim();
+            const content = document.getElementById('template-editor').value.trim();
+
+            if(!name || !content) {
+                alert('Nama dan konten template wajib diisi!');
+                return;
+            }
+
+            if(editingTemplateId === 'new') {
+                templates.push({
+                    id: 'tpl_' + Date.now(),
+                    name: name,
+                    content: content
+                });
+            } else {
+                const idx = templates.findIndex(t => t.id === editingTemplateId);
+                templates[idx].name = name;
+                templates[idx].content = content;
+                // If it's the currently active one, update currentTemplate
+                if(editingTemplateId === activeTemplateId) {
+                    currentTemplate = templates[idx];
+                }
+            }
+
+            localStorage.setItem('sibara_templates', JSON.stringify(templates));
+            renderTemplateSettings();
+            updateTemplateSelector();
+            applyCurrentTemplate();
+            hideTemplateEditor();
+            alert('Template berhasil disimpan!');
+        }
+
+        function deleteTemplate(id) {
+            if(id === 'default') return;
+            if(confirm('Hapus template ini?')) {
+                if(id === activeTemplateId) {
+                    activeTemplateId = 'default';
+                    localStorage.setItem('sibara_active_template_id', 'default');
+                    currentTemplate = templates.find(t => t.id === 'default');
+                }
+                templates = templates.filter(t => t.id !== id);
+                localStorage.setItem('sibara_templates', JSON.stringify(templates));
+                renderTemplateSettings();
+                updateTemplateSelector();
+                applyCurrentTemplate();
+            }
+        }
+
+        // --- End Template Management ---
+
         function handleInput(field, val) {
             dynamicData[field] = val;
             updatePreview();
         }
 
         function updatePreview() {
-            let rendered = template;
+            let rendered = currentTemplate.content;
             const now = new Date();
             const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             const dayStr = now.toLocaleDateString('id-ID', { weekday: 'long' });
@@ -416,18 +552,10 @@
         function switchTab(id) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('bg-white/10'));
-            
             document.getElementById(id).classList.add('active');
             document.getElementById('btn-' + id).classList.add('bg-white/10');
-            
-            // Close sidebar on mobile after selection
-            if (window.innerWidth < 768) {
-                toggleSidebar();
-            }
-
-            if(id === 'input') {
-                setTimeout(initPads, 100);
-            }
+            if (window.innerWidth < 768) toggleSidebar();
+            if(id === 'input') setTimeout(initPads, 100);
         }
 
         function toggleDarkMode() {
@@ -449,27 +577,10 @@
             }
         }
 
-        function saveTemplate() {
-            template = document.getElementById('template-editor').value;
-            extractFields();
-            updatePreview();
-            alert('Template Diperbarui!');
-        }
-
         async function exportDoc(format) {
             const element = document.getElementById('capture-area');
-            const canvas = await html2canvas(element, { 
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff"
-            });
-            
-            const entry = {
-                id: Date.now(),
-                title: dynamicData.nomor_surat || "Rapat",
-                date: new Date().toLocaleDateString()
-            };
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+            const entry = { id: Date.now(), title: dynamicData.nomor_surat || currentTemplate.name, date: new Date().toLocaleDateString() };
             history.unshift(entry);
             localStorage.setItem('sibara_history', JSON.stringify(history));
             renderHistory();
@@ -477,10 +588,9 @@
             if(format === 'pdf') {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgData = canvas.toDataURL('image/png');
                 const width = pdf.internal.pageSize.getWidth();
                 const height = (canvas.height * width) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, width, height);
                 pdf.save(`Si-BARA-${entry.title}.pdf`);
             } else {
                 const link = document.createElement('a');
@@ -494,26 +604,16 @@
             const list = document.getElementById('history-list');
             const countEl = document.getElementById('stat-count');
             if(countEl) countEl.innerText = `${history.length} Berkas`;
-            
-            list.innerHTML = '';
-            if(history.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-400 py-10 italic">Belum ada riwayat dokumen.</p>';
-                return;
-            }
-
+            list.innerHTML = history.length === 0 ? '<p class="text-center text-gray-400 py-10 italic">Belum ada riwayat dokumen.</p>' : '';
             history.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'bg-white p-4 rounded-2xl border flex justify-between items-center hover:shadow-md transition-shadow group';
                 div.innerHTML = `
                     <div class="flex items-center gap-4">
                         <div class="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center transition-colors group-hover:bg-blue-500 group-hover:text-white"><i data-lucide="file-text"></i></div>
-                        <div>
-                            <p class="font-bold text-sm text-gray-900">${item.title}</p>
-                            <p class="text-[10px] text-gray-400">${item.date}</p>
-                        </div>
+                        <div><p class="font-bold text-sm text-gray-900">${item.title}</p><p class="text-[10px] text-gray-400">${item.date}</p></div>
                     </div>
-                    <button onclick="deleteHistory(${item.id})" class="text-red-400 p-2 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2"></i></button>
-                `;
+                    <button onclick="deleteHistory(${item.id})" class="text-red-400 p-2 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2"></i></button>`;
                 list.appendChild(div);
             });
             lucide.createIcons();
